@@ -25,6 +25,10 @@ const createBookingValidationSchema = Joi.object({
         .required(),
     location: Joi.string().required(),
     package: Joi.string().valid("silver", "gold", "platinum").optional(),
+    coordinates: Joi.object({
+        lat: Joi.number().required(),
+        lng: Joi.number().required()
+    }).optional(),
     notes: Joi.string().allow("").optional(),
 });
 
