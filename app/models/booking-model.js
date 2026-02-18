@@ -34,6 +34,12 @@ const bookingSchema = new mongoose.Schema(
         location: {
             type: String
         },
+        latitude: {
+            type: Number
+        },
+        longitude: {
+            type: Number
+        },
         package: {
             type: String,
             default: "gold"
@@ -67,9 +73,15 @@ bookingSchema.index({ photographerId: 1, eventDate: 1 }); // Compound for overla
 
 // Statics for overlap check
 bookingSchema.statics.checkOverlap = async function (photographerId, date, startTime, endTime, excludeBookingId = null) {
+    const targetDate = new Date(date);
+    targetDate.setHours(0, 0, 0, 0);
+
     const query = {
         photographerId,
-        eventDate: new Date(date),
+        eventDate: {
+            $gte: targetDate,
+            $lt: new Date(targetDate.getTime() + 24 * 60 * 60 * 1000)
+        },
         status: { $in: ["pending", "confirmed", "in_progress", "completed"] },
     };
 

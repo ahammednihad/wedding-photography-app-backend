@@ -10,7 +10,7 @@ const uploadController = {
 
             const user = await User.findByIdAndUpdate(
                 req.userId,
-                { 'profile.avatar': req.file.path },
+                { avatar: req.file.path },
                 { new: true }
             ).select('-passwordHash');
 
@@ -26,15 +26,18 @@ const uploadController = {
                 return res.status(400).json({ error: 'No files uploaded' });
             }
 
-            const imagePaths = req.files.map(file => file.path);
+            const portfolioItems = req.files.map(file => ({
+                url: file.path,
+                public_id: file.filename // multer-storage-cloudinary provides this
+            }));
 
             const user = await User.findByIdAndUpdate(
                 req.userId,
-                { $push: { 'profile.portfolio': { $each: imagePaths } } },
+                { $push: { portfolio: { $each: portfolioItems } } },
                 { new: true }
             ).select('-passwordHash');
 
-            res.json({ message: 'Portfolio images uploaded successfully', images: imagePaths, user });
+            res.json({ message: 'Portfolio images uploaded successfully', items: portfolioItems, user });
         } catch (error) {
             res.status(500).json({ error: error.message });
         }
@@ -47,10 +50,10 @@ const uploadController = {
             // Delete from Cloudinary
             await cloudinary.uploader.destroy(publicId);
 
-            // Remove from user's portfolio
+            // Remove from user's portfolio by public_id
             const user = await User.findByIdAndUpdate(
                 req.userId,
-                { $pull: { 'profile.portfolio': { $regex: publicId } } },
+                { $pull: { portfolio: { public_id: publicId } } },
                 { new: true }
             ).select('-passwordHash');
 

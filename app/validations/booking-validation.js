@@ -24,6 +24,8 @@ const createBookingValidationSchema = Joi.object({
         .valid("Wedding", "Engagement", "Pre-Wedding", "Reception", "Other")
         .required(),
     location: Joi.string().required(),
+    latitude: Joi.number().optional(),
+    longitude: Joi.number().optional(),
     package: Joi.string().valid("silver", "gold", "platinum").optional(),
     notes: Joi.string().allow("").optional(),
 });
