@@ -29,6 +29,7 @@ const createBookingValidationSchema = Joi.object({
         lat: Joi.number().required(),
         lng: Joi.number().required()
     }).optional(),
+    amount: Joi.number().optional(),
     notes: Joi.string().allow("").optional(),
 });
 
