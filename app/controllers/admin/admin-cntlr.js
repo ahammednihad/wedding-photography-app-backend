@@ -2,6 +2,7 @@ const Booking = require('../../models/booking-model');
 const User = require('../../models/user-model');
 const Payment = require('../../models/payment-model');
 const mongoose = require('mongoose');
+const mailer = require('../../utils/mailer');
 
 const adminController = {
     // ==================== DASHBOARD ====================
@@ -97,9 +98,12 @@ const adminController = {
 
     async updateUser(req, res) {
         try {
+            // Strip sensitive fields that should not be updated via this endpoint
+            const { passwordHash, role, isApproved, isActive, ...safeBody } = req.body;
+
             const user = await User.findByIdAndUpdate(
                 req.params.id,
-                req.body,
+                safeBody,
                 { new: true, runValidators: true }
             ).select('-passwordHash');
 
@@ -216,6 +220,9 @@ const adminController = {
                 return res.status(404).json({ error: 'Booking not found' });
             }
 
+            // Send booking status update email asynchronously
+            mailer.sendBookingStatusEmail(booking, booking.clientId, booking.photographerId, status);
+
             res.json({ message: 'Booking status updated', booking });
         } catch (error) {
             res.status(500).json({ error: error.message });
@@ -279,6 +286,9 @@ const adminController = {
             if (!photographer) {
                 return res.status(404).json({ error: 'Photographer not found' });
             }
+
+            // Send approval email asynchronously
+            mailer.sendPhotographerApprovalEmail(photographer);
 
             res.json({ message: 'Photographer approved successfully', photographer });
         } catch (error) {
@@ -361,15 +371,32 @@ const adminController = {
     async assignPhotographer(req, res) {
         try {
             const { photographerId } = req.body;
+
+            const bookingToUpdate = await Booking.findById(req.params.id);
+            if (!bookingToUpdate) {
+                return res.status(404).json({ error: 'Booking not found' });
+            }
+
+            const isOverlapping = await Booking.checkOverlap(
+                photographerId,
+                bookingToUpdate.eventDate,
+                bookingToUpdate.startTime,
+                bookingToUpdate.endTime,
+                bookingToUpdate._id
+            );
+
+            if (isOverlapping) {
+                return res.status(400).json({
+                    error: "Scheduling Conflict",
+                    message: "The photographer is already booked for this time slot."
+                });
+            }
+
             const booking = await Booking.findByIdAndUpdate(
                 req.params.id,
                 { photographerId, status: 'pending' },
                 { new: true }
             ).populate('clientId photographerId');
-
-            if (!booking) {
-                return res.status(404).json({ error: 'Booking not found' });
-            }
 
             res.json({ message: 'Photographer assigned successfully', booking });
         } catch (error) {
@@ -380,15 +407,32 @@ const adminController = {
     async reassignPhotographer(req, res) {
         try {
             const { photographerId } = req.body;
+
+            const bookingToUpdate = await Booking.findById(req.params.id);
+            if (!bookingToUpdate) {
+                return res.status(404).json({ error: 'Booking not found' });
+            }
+
+            const isOverlapping = await Booking.checkOverlap(
+                photographerId,
+                bookingToUpdate.eventDate,
+                bookingToUpdate.startTime,
+                bookingToUpdate.endTime,
+                bookingToUpdate._id
+            );
+
+            if (isOverlapping) {
+                return res.status(400).json({
+                    error: "Scheduling Conflict",
+                    message: "The photographer is already booked for this time slot."
+                });
+            }
+
             const booking = await Booking.findByIdAndUpdate(
                 req.params.id,
                 { photographerId },
                 { new: true }
             ).populate('clientId photographerId');
-
-            if (!booking) {
-                return res.status(404).json({ error: 'Booking not found' });
-            }
 
             res.json({ message: 'Photographer reassigned successfully', booking });
         } catch (error) {

@@ -42,6 +42,7 @@ const reviewController = require('./app/controllers/client/review-cntlr');
 const uploadController = require('./app/controllers/photographer/upload-cntlr');
 const availabilityController = require('./app/controllers/photographer/availability-cntlr');
 const chatController = require('./app/controllers/common/chat-cntlr');
+const chatbotController = require('./app/controllers/common/chatbot-cntlr');
 
 // ==================== API ROUTES ====================
 
@@ -51,6 +52,8 @@ router.get("/api", (req, res) => res.json({ message: "Welcome to WedLens API" })
 // --- Auth Routes ---
 router.post('/api/auth/register', authController.register);
 router.post('/api/auth/login', authController.login);
+router.post('/api/auth/forgot-password', authController.forgotPassword);
+router.post('/api/auth/reset-password/:token', authController.resetPassword);
 
 // --- Public Routes ---
 router.get('/api/public/photographers', publicController.listPhotographers);
@@ -59,6 +62,7 @@ router.post('/api/public/search', publicController.searchPhotographers);
 router.get('/api/public/availability/:id', publicController.getAvailability);
 router.get('/api/public/busy-slots/:id', publicController.getBusySlots);
 router.get('/api/public/reviews/:id', publicController.getReviews);
+router.post('/api/public/contact', publicController.submitContactForm);
 
 // --- Admin Routes ---
 const adminRouter = express.Router();
@@ -129,7 +133,7 @@ photographerRouter.put('/profile', photographerController.updateProfile);
 photographerRouter.post('/availability', availabilityController.set);
 photographerRouter.post('/upload/avatar', upload.single('image'), uploadController.avatar);
 photographerRouter.post('/upload/portfolio', upload.array('images', 10), uploadController.portfolio);
-photographerRouter.delete('/upload/portfolio/:publicId', uploadController.deletePortfolioImage);
+photographerRouter.delete('/upload/portfolio/*publicId', uploadController.deletePortfolioImage);
 router.use('/api/photographer', photographerRouter);
 
 // --- Common/Utility Routes ---
@@ -137,6 +141,7 @@ router.use('/api/chat', authenticateUser);
 router.get('/api/chat/history/:bookingId', authenticateUser, chatController.getChatHistory);
 router.post('/api/chat/send', authenticateUser, chatController.saveChat);
 router.get('/api/chat/inbox/:id', authenticateUser, chatController.getInbox);
+router.post('/api/chatbot', authenticateUser, chatbotController.chat);
 
 router.post('/api/payments/create-order', authenticateUser, authorizeUser(['client']), paymentController.createOrder);
 router.post('/api/payments/verify', authenticateUser, authorizeUser(['client']), paymentController.verifyPayment);
@@ -146,17 +151,19 @@ router.get('/api/payments/history', authenticateUser, paymentController.history)
 app.use("/", router);
 
 // ==================== ERROR HANDLING ====================
+
+// 404 Handler
+app.use((req, res) => {
+    res.status(404).json({ error: "Route not found", path: req.path });
+});
+
+// Global Error Handler
 app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({
         error: "Something went wrong!",
         message: err.message
     });
-});
-
-// 404 Handler
-app.use((req, res) => {
-    res.status(404).json({ error: "Route not found", path: req.path });
 });
 
 // ==================== SERVER INITIALIZATION ====================

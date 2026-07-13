@@ -1,6 +1,9 @@
 const User = require("../../models/user-model");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
+const nodemailer = require("nodemailer");
+const mailer = require("../../utils/mailer");
 const {
     authRegisterValidationSchema,
     userLoginValidationSchema
@@ -37,6 +40,9 @@ authCntlr.register = async (req, res) => {
             isActive: true
         });
         await user.save();
+
+        // Send registration email asynchronously (do not await to keep flow fast)
+        mailer.sendRegistrationEmail(user);
 
         const token = jwt.sign(
             { userId: user._id.toString(), role: user.role },
@@ -114,6 +120,75 @@ authCntlr.login = async (req, res) => {
     } catch (err) {
         console.log(err);
         return res.status(500).json({ error: "Something went wrong" });
+    }
+};
+
+/* ================= FORGOT PASSWORD ================= */
+authCntlr.forgotPassword = async (req, res) => {
+    const { email } = req.body;
+    if (!email) {
+        return res.status(400).json({ error: "Email is required" });
+    }
+
+    try {
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(404).json({ error: "User not found with this email" });
+        }
+
+        const resetToken = crypto.randomBytes(32).toString("hex");
+        user.resetPasswordToken = resetToken;
+        user.resetPasswordExpires = Date.now() + 3600000;
+        await user.save();
+
+        const origin = req.headers.origin || "http://localhost:5173";
+        const resetUrl = `${origin}/reset-password/${resetToken}`;
+        console.log(`[PASS_RESET_URL] Generated reset link: ${resetUrl}`);
+
+        try {
+            await mailer.sendPasswordResetEmail(user, resetUrl);
+            res.json({ message: "Password reset link sent to your email", resetUrl });
+        } catch (mailError) {
+            console.error("Nodemailer error: Mail sending failed. Reset URL logged to console.", mailError.message);
+            res.json({ 
+                message: "Password reset link generated. Check server console for URL.",
+                resetUrl
+            });
+        }
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Failed to generate reset link" });
+    }
+};
+
+/* ================= RESET PASSWORD ================= */
+authCntlr.resetPassword = async (req, res) => {
+    const { token } = req.params;
+    const { password } = req.body;
+
+    if (!password || password.length < 6) {
+        return res.status(400).json({ error: "Password must be at least 6 characters" });
+    }
+
+    try {
+        const user = await User.findOne({
+            resetPasswordToken: token,
+            resetPasswordExpires: { $gt: Date.now() }
+        });
+
+        if (!user) {
+            return res.status(400).json({ error: "Password reset token is invalid or has expired" });
+        }
+
+        user.passwordHash = await bcrypt.hash(password, 10);
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpires = undefined;
+        await user.save();
+
+        res.json({ message: "Password updated successfully! You can now login with your new password." });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Failed to reset password" });
     }
 };
 

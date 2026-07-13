@@ -293,9 +293,17 @@ const photographerController = {
 
     async updateProfile(req, res) {
         try {
+            const allowedFields = ['name', 'email', 'phone', 'bio', 'experience', 'pricePerDay', 'skills', 'services'];
+            const updateData = {};
+            for (const key of allowedFields) {
+                if (req.body[key] !== undefined) {
+                    updateData[key] = req.body[key];
+                }
+            }
+
             const photographer = await User.findByIdAndUpdate(
                 req.userId,
-                req.body,
+                updateData,
                 { new: true, runValidators: true }
             ).select('-passwordHash');
 

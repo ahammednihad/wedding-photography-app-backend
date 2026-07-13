@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
+const User = require("../models/user-model");
 
-const authenticateUser = (req, res, next) => {
+const authenticateUser = async (req, res, next) => {
     // Accept token with or without "Bearer " prefix (frontend sends token directly)
     let token = req.headers["authorization"];
     if (!token) {
@@ -14,8 +15,17 @@ const authenticateUser = (req, res, next) => {
     try {
         const tokenData = jwt.verify(token, process.env.JWT_SECRET);
 
+        // Fetch user from DB to verify if active/existent
+        const user = await User.findById(tokenData.userId);
+        if (!user) {
+            return res.status(401).json({ error: "User account no longer exists" });
+        }
+        if (!user.isActive) {
+            return res.status(403).json({ error: "Your account is deactivated. Please contact support." });
+        }
+
         req.userId = tokenData.userId;
-        req.user = { _id: tokenData.userId }; // Ensure req.user exists for controllers
+        req.user = user; // Ensure req.user has full DB details
         req.role = tokenData.role;
 
         next();

@@ -2,6 +2,7 @@ const Booking = require('../../models/booking-model');
 const Payment = require('../../models/payment-model');
 const User = require('../../models/user-model');
 const mongoose = require('mongoose');
+const mailer = require('../../utils/mailer');
 
 const { createBookingValidationSchema } = require('../../validations/booking-validation');
 
@@ -80,6 +81,13 @@ const clientController = {
 
             const booking = new Booking(bookingData);
             await booking.save();
+
+            // Fetch client and photographer documents to send emails asynchronously
+            const client = await User.findById(req.user._id);
+            const photographer = await User.findById(photographerId);
+            if (client) {
+                mailer.sendBookingStatusEmail(booking, client, photographer, 'pending');
+            }
 
             res.status(201).json({
                 message: 'Booking request sent. Please wait for photographer approval.',
@@ -160,6 +168,13 @@ const clientController = {
                 return res.status(404).json({ error: 'Booking not found' });
             }
 
+            // Fetch client and photographer documents to send emails asynchronously
+            const client = await User.findById(booking.clientId);
+            const photographer = await User.findById(booking.photographerId);
+            if (client) {
+                mailer.sendBookingStatusEmail(booking, client, photographer, 'cancelled');
+            }
+
             res.json({ message: 'Booking cancelled successfully', booking });
         } catch (error) {
             res.status(500).json({ error: error.message });
@@ -169,6 +184,11 @@ const clientController = {
     // ==================== PAYMENTS ====================
     async recordPayment(req, res) {
         try {
+            const amount = Number(req.body.amount);
+            if (isNaN(amount) || amount <= 0) {
+                return res.status(400).json({ error: 'Payment amount must be a positive number' });
+            }
+
             const booking = await Booking.findOne({
                 _id: req.params.id,
                 clientId: req.user._id

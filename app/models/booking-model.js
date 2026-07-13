@@ -94,6 +94,9 @@ bookingSchema.statics.checkOverlap = async function (photographerId, date, start
 
 // Pre-save hook for last-resort validation
 bookingSchema.pre('save', async function () {
+    // Skip overlap check if no photographer assigned yet
+    if (!this.photographerId) return;
+
     if (this.isModified('eventDate') || this.isModified('startTime') || this.isModified('endTime')) {
         const hasOverlap = await mongoose.model('Booking').checkOverlap(
             this.photographerId,

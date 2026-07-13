@@ -17,7 +17,7 @@ chatController.getChatHistory = async (req, res) => {
         if (!booking) return res.status(404).json("Booking not found");
 
         if (booking.clientId.toString() !== req.userId &&
-            booking.photographerId.toString() !== req.userId) {
+            (!booking.photographerId || booking.photographerId.toString() !== req.userId)) {
             return res.status(403).json("Unauthorized access to this chat");
         }
 

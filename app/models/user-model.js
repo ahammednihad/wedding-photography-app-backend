@@ -91,7 +91,15 @@ const userSchema = mongoose.Schema(
         category: String,
         savedAt: { type: Date, default: Date.now }
       }
-    ]
+    ],
+    resetPasswordToken: {
+      type: String,
+      required: false
+    },
+    resetPasswordExpires: {
+      type: Date,
+      required: false
+    }
   },
   { timestamps: true }
 );

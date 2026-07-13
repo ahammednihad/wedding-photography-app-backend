@@ -2,7 +2,9 @@ const Razorpay = require("razorpay");
 const crypto = require("crypto");
 const Booking = require("../../models/booking-model");
 const Payment = require("../../models/payment-model");
+const User = require("../../models/user-model");
 const paymentValidationSchema = require("../../validations/payment-validation");
+const mailer = require("../../utils/mailer");
 
 const paymentController = {};
 
@@ -96,6 +98,17 @@ paymentController.verifyPayment = async (req, res) => {
             .digest("hex");
 
         if (expectedSignature !== razorpay_signature) {
+            // Mark payment as failed in DB and send failure email alert
+            const payment = await Payment.findOne({ razorpayOrderId: razorpay_order_id });
+            if (payment) {
+                payment.status = "failed";
+                await payment.save();
+                const client = await User.findById(payment.user);
+                const booking = await Booking.findById(payment.booking);
+                if (client && booking) {
+                    mailer.sendPaymentFailureEmail(client, booking, "Payment verification failed - Signature mismatch");
+                }
+            }
             return res.status(400).json({
                 success: false,
                 message: "Payment verification failed"
@@ -116,11 +129,20 @@ paymentController.verifyPayment = async (req, res) => {
         payment.status = "success";
         await payment.save();
 
-        //  Confirm booking & Update payment status
-        await Booking.findByIdAndUpdate(payment.booking, {
+        // Confirm booking & Update payment status
+        const booking = await Booking.findByIdAndUpdate(payment.booking, {
             status: "confirmed",
             paymentStatus: "paid"
-        });
+        }, { new: true });
+
+        const client = await User.findById(payment.user);
+        const photographer = await User.findById(booking?.photographerId);
+
+        if (client && booking) {
+            // Trigger emails asynchronously
+            mailer.sendPaymentSuccessEmail(payment, client, booking);
+            mailer.sendBookingStatusEmail(booking, client, photographer, "confirmed");
+        }
 
         res.json({
             success: true,

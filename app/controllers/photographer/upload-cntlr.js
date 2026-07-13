@@ -38,7 +38,7 @@ const uploadController = {
                 { new: true }
             ).select('-passwordHash');
 
-            res.json({ message: 'Portfolio images uploaded successfully', images: portfolioItems, user });
+            res.json({ message: 'Portfolio images uploaded successfully', images: portfolioItems, user, portfolio: user.portfolio });
         } catch (error) {
             res.status(500).json({ error: error.message });
         }
@@ -46,7 +46,10 @@ const uploadController = {
 
     async deletePortfolioImage(req, res) {
         try {
-            const { publicId } = req.params;
+            let { publicId } = req.params;
+            if (Array.isArray(publicId)) {
+                publicId = publicId.join('/');
+            }
 
             // Delete from Cloudinary
             await cloudinary.uploader.destroy(publicId);
@@ -58,7 +61,7 @@ const uploadController = {
                 { new: true }
             ).select('-passwordHash');
 
-            res.json({ message: 'Portfolio image deleted successfully', user });
+            res.json({ message: 'Portfolio image deleted successfully', user, portfolio: user.portfolio });
         } catch (error) {
             res.status(500).json({ error: error.message });
         }
