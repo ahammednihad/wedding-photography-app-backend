@@ -14,8 +14,34 @@ const router = express.Router();
 const port = process.env.PORT || 5000;
 
 // ==================== MIDDLEWARE ====================
+const allowedOrigins = [
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://localhost:5175",
+    "http://localhost:3000",
+    "https://wedding-photography-app-frontend.vercel.app",
+    "https://wedding-photography-app-frontend-airw8ym5a.vercel.app"
+];
+
+if (process.env.FRONTEND_URL) {
+    allowedOrigins.push(process.env.FRONTEND_URL);
+}
+
 app.use(cors({
-    origin: ["http://localhost:5173", "http://localhost:5174", "https://wedding-photography-app-frontend.vercel.app","http://localhost:5175", "http://localhost:3000"],
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        
+        const isAllowed = allowedOrigins.includes(origin) || 
+                          (origin.startsWith("https://wedding-photography-app-frontend") && origin.endsWith(".vercel.app"));
+        
+        if (isAllowed) {
+            callback(null, true);
+        } else {
+            console.warn(`Origin ${origin} blocked by CORS`);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
