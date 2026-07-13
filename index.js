@@ -15,7 +15,7 @@ const port = process.env.PORT || 5000;
 
 // ==================== MIDDLEWARE ====================
 app.use(cors({
-    origin: ["http://localhost:5173", "http://localhost:5174", "http://localhost:5175", "http://localhost:3000"],
+    origin: ["http://localhost:5173", "http://localhost:5174", "https://wedding-photography-app-frontend.vercel.app","http://localhost:5175", "http://localhost:3000"],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
