@@ -1,1 +1,0 @@
-# wedding-photography-app-backend

@@ -142,7 +142,7 @@ router.post('/api/payments/create-order', authenticateUser, authorizeUser(['clie
 router.post('/api/payments/verify', authenticateUser, authorizeUser(['client']), paymentController.verifyPayment);
 router.get('/api/payments/history', authenticateUser, paymentController.history);
 
-// ==================== MOUNT ROUTES ====================
+// ==================== MOUNT ROUTER ====================
 app.use("/", router);
 
 // ==================== ERROR HANDLING ====================
